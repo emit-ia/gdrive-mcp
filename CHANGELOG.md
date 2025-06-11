@@ -5,37 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2024-12-XX
+## [1.0.0] - 2024-12-06
 
 ### Added
-- Initial public release of Google Drive MCP Server
-- Complete Google Drive API integration with MCP
-- Gmail API integration for email management
-- OAuth 2.0 and Service Account authentication support
-- Comprehensive file operations (list, get, upload, download, update, delete, copy, move)
-- Folder management capabilities
-- File sharing and permissions management
-- Advanced search functionality
-- Comments and collaboration features
-- Revision history access
-- Account information and trash management
-- Token management and automatic refresh
-- Detailed setup guides and documentation
-- Claude Desktop configuration helpers
-- Environment variable configuration system
-- TypeScript implementation with proper type safety
+
+**Core Features**
+- Google Drive & Gmail MCP Server with hybrid authentication
+- Service Account authentication for Google Drive (reliable, no expiration)
+- OAuth2 authentication for Gmail (required for personal access)
+- Automatic Gmail token refresh (prevents 6-month expiration)
+
+**Google Drive API**
+- File operations: list, get, upload, download, update, delete, copy, move
+- Folder management: create, get info and contents
+- Sharing & permissions: share files, manage permissions
+- Search: advanced search with filters, recent files
+- Collaboration: comments and revision history
+- Account management and trash operations
+
+**Gmail API**
+- Message operations: list, get, send, search
+- Message management: mark read/unread, detailed info
+- Profile access and token status monitoring
+- Full search query support with content extraction
+
+**Technical**
+- TypeScript implementation with full type safety
 - Comprehensive error handling and logging
+- Environment variable configuration
+- MCP protocol compliance
+
+**Documentation**
+- Complete setup guides (README.md, HYBRID-AUTH-SETUP.md)
+- Environment configuration examples
+- Comprehensive inline code documentation
+- Claude Desktop integration examples
 
 ### Security
-- No hardcoded credentials or secrets
-- Proper environment variable usage
-- Secure token management
+- Zero hardcoded credentials
+- Environment variable configuration
+- Automatic token refresh
 - Input validation and sanitization
 
-### Documentation
-- Complete README with setup instructions
-- Detailed setup guides for different authentication methods
-- Token management documentation
-- Hybrid authentication setup guide
-- Environment variable examples
-- Security best practices 
+### Notes
+- Service Account files are isolated by design
+- Gmail requires OAuth2 (Service Accounts cannot access personal Gmail)
+- Google Workspace files require export for download 

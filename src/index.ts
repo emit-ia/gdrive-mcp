@@ -1,5 +1,17 @@
 #!/usr/bin/env node
 
+/**
+ * Google Drive & Gmail MCP Server
+ * 
+ * This MCP (Model Context Protocol) server provides comprehensive access to Google Drive
+ * and Gmail services through a hybrid authentication system:
+ * - Service Account authentication for Google Drive (reliable, no expiration)
+ * - OAuth2 authentication for Gmail (required for personal Gmail access)
+ * 
+ * The server implements automatic token management for Gmail to prevent the common
+ * 6-month token expiration issues that plague many integrations.
+ */
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -11,12 +23,20 @@ import { GmailService } from "./gmail.js";
 import { config } from "./config.js";
 import { Logger } from "./logger.js";
 
+/**
+ * Main MCP Server class that orchestrates Google Drive and Gmail services
+ * 
+ * This server follows the MCP protocol specification and provides a unified interface
+ * for both Google Drive and Gmail operations. It handles tool registration, request
+ * routing, and error management.
+ */
 class GoogleDriveMCPServer {
   private server: Server;
   private driveService: GoogleDriveService;
   private gmailService: GmailService;
 
   constructor() {
+    // Initialize the MCP server with configuration from config.ts
     this.server = new Server(
       {
         name: config.serverName,
@@ -24,14 +44,23 @@ class GoogleDriveMCPServer {
       }
     );
 
+    // Initialize Google services with their respective authentication methods
     this.driveService = new GoogleDriveService();
     this.gmailService = new GmailService();
+    
+    // Set up MCP protocol handlers
     this.setupToolHandlers();
     this.setupErrorHandling();
   }
 
+  /**
+   * Sets up MCP tool handlers for both Google Drive and Gmail operations
+   * 
+   * This method registers all available tools with their schemas, providing
+   * comprehensive documentation for each tool's parameters and functionality.
+   */
   private setupToolHandlers() {
-    // List all available tools
+    // Register the list tools handler - this tells MCP clients what tools are available
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
@@ -581,14 +610,22 @@ class GoogleDriveMCPServer {
       };
     });
 
-    // Handle tool calls
+    /**
+     * Handle individual tool calls from MCP clients
+     * 
+     * This handler routes tool calls to the appropriate service method based on
+     * the tool name. It provides consistent error handling and response formatting
+     * for all tools.
+     */
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
       try {
         let result;
 
+        // Route tool calls to appropriate service methods
         switch (name) {
+          // Google Drive File Operations
           case "gdrive_list_files":
             result = await this.driveService.listFiles(args || {});
             break;
@@ -649,6 +686,7 @@ class GoogleDriveMCPServer {
           case "gdrive_empty_trash":
             result = await this.driveService.emptyTrash();
             break;
+          // Gmail Operations
           case "gmail_list_messages":
             result = await this.gmailService.listMessages((args as any)?.query, (args as any)?.maxResults);
             break;
@@ -678,6 +716,7 @@ class GoogleDriveMCPServer {
           case "gmail_get_profile":
             result = await this.gmailService.getProfile();
             break;
+          // Gmail Token Management (prevents 6-month expiration issues)
           case "gmail_check_token_status":
             result = this.gmailService.getTokenStatus();
             break;
@@ -688,6 +727,7 @@ class GoogleDriveMCPServer {
             throw new Error(`Unknown tool: ${name}`);
         }
 
+        // Return successful result in MCP format
         return {
           content: [
             {
@@ -697,6 +737,7 @@ class GoogleDriveMCPServer {
           ],
         };
       } catch (error) {
+        // Return error in MCP format with proper error flag
         return {
           content: [
             {
@@ -710,17 +751,31 @@ class GoogleDriveMCPServer {
     });
   }
 
+  /**
+   * Sets up global error handling for the MCP server
+   * 
+   * This includes both MCP server errors and process termination signals
+   * to ensure graceful shutdown and proper cleanup.
+   */
   private setupErrorHandling() {
+    // Handle MCP server errors
     this.server.onerror = (error: unknown) => {
       Logger.error("MCP Server Error:", error);
     };
 
+    // Handle graceful shutdown on SIGINT (Ctrl+C)
     process.on("SIGINT", async () => {
       await this.server.close();
       process.exit(0);
     });
   }
 
+  /**
+   * Starts the MCP server using stdio transport
+   * 
+   * This method connects the server to the stdio transport, which allows
+   * communication with MCP clients like Claude Desktop.
+   */
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
@@ -728,7 +783,8 @@ class GoogleDriveMCPServer {
   }
 }
 
-// Start the server
+// Initialize and start the server
+// This is the main entry point for the MCP server
 const server = new GoogleDriveMCPServer();
 server.run().catch((error) => {
   Logger.error("Failed to start server:", error);

@@ -40,10 +40,8 @@
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
-    "SECURITY.md",
     "SETUP-GUIDE.md",
     "HYBRID-AUTH-SETUP.md",
-    "TOKEN-MANAGEMENT.md",
     "env.example",
     "package.json"
   ],

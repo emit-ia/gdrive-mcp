@@ -1,7 +1,21 @@
+/**
+ * Gmail Service for MCP Server
+ * 
+ * This service provides Gmail operations using OAuth2 authentication with automatic
+ * token management to prevent the common 6-month expiration issues. It includes
+ * message listing, sending, reading, searching, and profile management.
+ */
+
 import { google } from 'googleapis';
 import { config } from './config.js';
 import { Logger } from './logger.js';
 
+/**
+ * Gmail service class that handles all Gmail API operations
+ * 
+ * Uses OAuth2 authentication (required for personal Gmail access) with automatic
+ * token refresh to maintain long-term connectivity without user intervention.
+ */
 export class GmailService {
   private gmail: any;
   private auth: any;
@@ -9,13 +23,25 @@ export class GmailService {
   private tokenRefreshInterval: NodeJS.Timeout | null = null;
 
   constructor() {
+    // Set up OAuth2 authentication for Gmail access
     this.initializeAuth();
+    
+    // Initialize Gmail API client
     this.gmail = google.gmail({ version: 'v1', auth: this.auth });
+    
+    // Start automatic token maintenance to prevent expiration
     this.setupTokenMaintenance();
   }
 
+  /**
+   * Initialize OAuth2 authentication for Gmail
+   * 
+   * OAuth2 is required for personal Gmail access (Service Accounts don't work
+   * well with personal Gmail accounts). This sets up the auth client and
+   * configures the refresh token if available.
+   */
   private initializeAuth() {
-    // Force OAuth2 authentication for Gmail (service accounts don't work well with personal Gmail)
+    // Require OAuth2 credentials for Gmail access
     if (!config.googleClientId || !config.googleClientSecret) {
       throw new Error(
         "Gmail requires OAuth2 authentication. Please set:\n" +
@@ -26,12 +52,14 @@ export class GmailService {
       );
     }
 
+    // Create OAuth2 client with configured credentials
     this.auth = new google.auth.OAuth2(
       config.googleClientId,
       config.googleClientSecret,
       config.googleRedirectUri
     );
 
+    // Set refresh token if available for automatic token renewal
     if (config.googleRefreshToken) {
       this.auth.setCredentials({
         refresh_token: config.googleRefreshToken,
@@ -44,13 +72,20 @@ export class GmailService {
     }
   }
 
+  /**
+   * Set up automatic token maintenance to prevent Gmail token expiration
+   * 
+   * This is crucial for long-running applications as Gmail tokens typically
+   * expire after 6 months if not refreshed regularly. We refresh every 30 minutes
+   * to keep the token active and avoid authentication issues.
+   */
   private setupTokenMaintenance() {
     if (!config.googleRefreshToken) {
       Logger.gmail("No refresh token available - token maintenance disabled");
       return;
     }
 
-    // Refresh token every 30 minutes to keep it active
+    // Refresh token every 30 minutes to keep it active and prevent expiration
     this.tokenRefreshInterval = setInterval(async () => {
       try {
         await this.validateAndRefreshToken();
@@ -60,12 +95,18 @@ export class GmailService {
       }
     }, 30 * 60 * 1000); // 30 minutes
 
-    // Initial token validation
+    // Perform initial token validation on startup
     this.validateAndRefreshToken().catch(error => {
       Logger.error("Initial token validation failed:", error instanceof Error ? error.message : String(error));
     });
   }
 
+  /**
+   * Validate and refresh the Gmail access token
+   * 
+   * This method forces a token refresh by requesting a new access token,
+   * which keeps the refresh token active and prevents expiration.
+   */
   private async validateAndRefreshToken(): Promise<void> {
     if (!config.googleRefreshToken) {
       throw new Error("No refresh token available for validation");
@@ -87,7 +128,12 @@ export class GmailService {
     }
   }
 
-  // Add a method to manually refresh the token
+  /**
+   * Manually refresh the Gmail access token
+   * 
+   * This method allows external callers to force a token refresh,
+   * useful for troubleshooting or ensuring fresh credentials.
+   */
   async refreshToken(): Promise<{ success: boolean; lastRefresh: Date; message: string }> {
     try {
       await this.validateAndRefreshToken();
@@ -105,7 +151,12 @@ export class GmailService {
     }
   }
 
-  // Add a method to get token status
+  /**
+   * Get the current status of the Gmail authentication token
+   * 
+   * This provides visibility into token health and maintenance status,
+   * useful for monitoring and troubleshooting authentication issues.
+   */
   getTokenStatus(): { 
     hasRefreshToken: boolean; 
     lastRefresh: Date; 
@@ -122,7 +173,12 @@ export class GmailService {
     };
   }
 
-  // Cleanup method
+  /**
+   * Clean up resources and stop token maintenance
+   * 
+   * This method should be called when the service is no longer needed
+   * to prevent memory leaks from the token refresh interval.
+   */
   destroy() {
     if (this.tokenRefreshInterval) {
       clearInterval(this.tokenRefreshInterval);
@@ -131,6 +187,13 @@ export class GmailService {
     }
   }
 
+  /**
+   * List Gmail messages with optional search query
+   * 
+   * @param query - Gmail search query (e.g., 'is:unread', 'from:example@gmail.com')
+   * @param maxResults - Maximum number of messages to return
+   * @returns Promise resolving to message list
+   */
   async listMessages(query?: string, maxResults: number = 10) {
     try {
       const response = await this.gmail.users.messages.list({
@@ -145,6 +208,12 @@ export class GmailService {
     }
   }
 
+  /**
+   * Get a specific Gmail message by ID
+   * 
+   * @param messageId - The ID of the message to retrieve
+   * @returns Promise resolving to full message details
+   */
   async getMessage(messageId: string) {
     try {
       const response = await this.gmail.users.messages.get({
@@ -159,8 +228,18 @@ export class GmailService {
     }
   }
 
+  /**
+   * Send a Gmail message
+   * 
+   * @param to - Recipient email address
+   * @param subject - Email subject line
+   * @param body - Email body content
+   * @param from - Optional sender email (uses authenticated user by default)
+   * @returns Promise resolving to sent message details
+   */
   async sendMessage(to: string, subject: string, body: string, from?: string) {
     try {
+      // Construct RFC 2822 email format
       const email = [
         `To: ${to}`,
         from ? `From: ${from}` : '',
@@ -169,6 +248,7 @@ export class GmailService {
         body
       ].join('\n');
 
+      // Encode email in base64 for Gmail API
       const base64Email = Buffer.from(email).toString('base64');
 
       const response = await this.gmail.users.messages.send({
@@ -228,6 +308,13 @@ export class GmailService {
     }
   }
 
+  /**
+   * Search Gmail messages and return full message details
+   * 
+   * @param query - Gmail search query
+   * @param maxResults - Maximum number of messages to return
+   * @returns Promise resolving to array of detailed message objects
+   */
   async searchMessages(query: string, maxResults: number = 50) {
     try {
       const response = await this.gmail.users.messages.list({
@@ -264,13 +351,24 @@ export class GmailService {
     }
   }
 
+  /**
+   * Extract plain text content from a Gmail message
+   * 
+   * Gmail messages can have complex structure with multiple parts.
+   * This method finds and decodes the plain text content.
+   * 
+   * @param message - The Gmail message object
+   * @returns The extracted plain text content
+   */
   extractTextFromMessage(message: any): string {
     if (!message.payload) return '';
 
+    // Check if message has direct body content
     if (message.payload.body && message.payload.body.data) {
       return Buffer.from(message.payload.body.data, 'base64').toString();
     }
 
+    // Check message parts for plain text content
     if (message.payload.parts) {
       for (const part of message.payload.parts) {
         if (part.mimeType === 'text/plain' && part.body && part.body.data) {
@@ -282,6 +380,13 @@ export class GmailService {
     return '';
   }
 
+  /**
+   * Extract a specific header value from a Gmail message
+   * 
+   * @param message - The Gmail message object
+   * @param headerName - The name of the header to extract (case-insensitive)
+   * @returns The header value or empty string if not found
+   */
   getHeaderValue(message: any, headerName: string): string {
     if (!message.payload || !message.payload.headers) return '';
     

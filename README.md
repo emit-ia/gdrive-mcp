@@ -1,37 +1,28 @@
-# Google Drive MCP Server
+# Google Drive & Gmail MCP Server
 
-A comprehensive Model Context Protocol (MCP) server that provides full Google Drive API functionality for LLM applications.
+Model Context Protocol server for Google Drive and Gmail APIs with hybrid authentication.
 
-## Features
+## Key Features
 
-- **File Operations**: List, get, download, upload, update, delete, copy, move files
-- **Folder Management**: Create folders, get folder info and contents
-- **Sharing & Permissions**: Share files, manage permissions, get sharing info
-- **Search & Discovery**: Advanced search, recent files, query with filters
-- **Comments & Collaboration**: Get comments, add comments
-- **Revision History**: Access file revisions
-- **Account Management**: Get account info, empty trash
+- **Hybrid Authentication**: Service Account (Drive) + OAuth2 (Gmail)
+- **Automatic Token Management**: Prevents 6-month Gmail token expiration
+- **Complete API Coverage**: Full Google Drive and Gmail functionality
+
+## API Coverage
+
+**Google Drive**: Files, folders, sharing, search, comments, revisions, account info  
+**Gmail**: Messages, sending, search, read/unread, profile, token management
 
 ## Installation
 
-### Global Installation (Recommended for multiple machines)
-
 ```bash
+# Global installation
 npm install -g gdrive-mcp-server
-```
 
-### Local Development Installation
-
-```bash
-# Clone or download this repository
+# Or local development
 git clone https://github.com/igoralmeida1993/gdrive-mcp.git
-cd gdrive-mcp-server
-
-# Install dependencies
-npm install
-
-# Build the project
-npm run build
+cd gdrive-mcp
+npm install && npm run build
 ```
 
 ## Setup
@@ -47,49 +38,39 @@ npm run build
 
 ### 2. Create Credentials
 
-#### Option A: OAuth 2.0 (Recommended for personal use)
+**Service Account** (for Google Drive):
+1. Google Cloud Console > "Credentials" > "Service Account"
+2. Download JSON key, extract `client_email` and `private_key`
 
-1. Go to "APIs & Services" > "Credentials"
-2. Click "Create Credentials" > "OAuth 2.0 Client IDs"
-3. Configure the consent screen if prompted
-4. Choose "Desktop application" as the application type
-5. Copy the Client ID and Client Secret
+**OAuth 2.0** (for Gmail):
+1. Google Cloud Console > "Credentials" > "OAuth 2.0 Client IDs"
+2. Desktop application type
+3. Generate refresh token via [OAuth Playground](https://developers.google.com/oauthplayground)
 
-#### Option B: Service Account (For server-to-server)
+> See [HYBRID-AUTH-SETUP.md](./HYBRID-AUTH-SETUP.md) for detailed steps.
 
-1. Go to "APIs & Services" > "Credentials"
-2. Click "Create Credentials" > "Service Account"
-3. Fill in the service account details
-4. Download the JSON key file
-5. Extract the email and private key from the JSON
-
-### 3. Configure Environment Variables
-
-Copy the `env.example` file to `.env` and fill in your credentials:
+### 3. Configure Environment
 
 ```bash
 cp env.example .env
+# Edit .env with your credentials
 ```
 
 ## Environment Variables (.env file)
 
 ```bash
-# Google Drive API Configuration
+# Google Drive & Gmail MCP Server Configuration
 # Get these from Google Cloud Console (https://console.cloud.google.com/)
 
-# OAuth 2.0 Client Credentials (for user authentication)
+# OAuth 2.0 Credentials (REQUIRED for Gmail functionality)
 GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your_client_secret_here
-
-# OAuth 2.0 Redirect URI (for authentication flow)
-GOOGLE_REDIRECT_URI=http://localhost:3000/auth/callback
-
-# OAuth 2.0 Refresh Token (generated after first authentication)
+GOOGLE_REDIRECT_URI=https://developers.google.com/oauthplayground
 GOOGLE_REFRESH_TOKEN=your_refresh_token_here
 
-# Alternative: Service Account (for server-to-server authentication)
-# GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
-# GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----"
+# Service Account Credentials (REQUIRED for Google Drive functionality)
+GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----"
 
 # MCP Server Configuration
 MCP_SERVER_NAME=gdrive-mcp-server
@@ -102,16 +83,6 @@ DEFAULT_FOLDER_ID=
 MAX_FILE_SIZE=104857600  # 100MB default
 ```
 
-### 4. Get Refresh Token (OAuth 2.0 only)
-
-If using OAuth 2.0, you need to generate a refresh token:
-
-1. Use the Google OAuth 2.0 Playground: https://developers.google.com/oauthplayground/
-2. In the configuration (gear icon), enter your Client ID and Client Secret
-3. In Step 1, select "Drive API v3" scope: `https://www.googleapis.com/auth/drive`
-4. Click "Authorize APIs" and follow the authorization flow
-5. In Step 2, click "Exchange authorization code for tokens"
-6. Copy the refresh token to your .env file
 
 ## Usage
 
@@ -128,19 +99,20 @@ npm start
 npm run dev
 ```
 
-### Configuring with MCP Clients
+### 4. MCP Client Configuration
 
-Add to your MCP client configuration (e.g., Claude Desktop):
-
+Claude Desktop configuration:
 ```json
 {
   "mcpServers": {
-    "gdrive": {
+    "google-workspace": {
       "command": "gdrive-mcp-server",
       "env": {
         "GOOGLE_CLIENT_ID": "your_client_id",
         "GOOGLE_CLIENT_SECRET": "your_client_secret",
-        "GOOGLE_REFRESH_TOKEN": "your_refresh_token"
+        "GOOGLE_REFRESH_TOKEN": "your_refresh_token",
+        "GOOGLE_SERVICE_ACCOUNT_EMAIL": "your-service-account@project.iam.gserviceaccount.com",
+        "GOOGLE_PRIVATE_KEY": "-----BEGIN PRIVATE KEY-----\nYour private key\n-----END PRIVATE KEY-----"
       }
     }
   }
@@ -149,102 +121,47 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 
 ## Available Tools
 
-### File Operations
-- `gdrive_list_files` - List files and folders
-- `gdrive_get_file` - Get file metadata
-- `gdrive_download_file` - Download file content
-- `gdrive_upload_file` - Upload new files
-- `gdrive_update_file` - Update existing files
-- `gdrive_delete_file` - Delete or trash files
-- `gdrive_copy_file` - Copy files
-- `gdrive_move_file` - Move files between folders
+**Google Drive**: `gdrive_list_files`, `gdrive_get_file`, `gdrive_download_file`, `gdrive_upload_file`, `gdrive_update_file`, `gdrive_delete_file`, `gdrive_copy_file`, `gdrive_move_file`, `gdrive_create_folder`, `gdrive_get_folder_info`, `gdrive_share_file`, `gdrive_get_permissions`, `gdrive_remove_permission`, `gdrive_search`, `gdrive_get_recent_files`, `gdrive_get_comments`, `gdrive_add_comment`, `gdrive_get_revisions`, `gdrive_get_about`, `gdrive_empty_trash`
 
-### Folder Operations
-- `gdrive_create_folder` - Create new folders
-- `gdrive_get_folder_info` - Get folder metadata and contents
+**Gmail**: `gmail_list_messages`, `gmail_get_message`, `gmail_send_message`, `gmail_search_messages`, `gmail_mark_as_read`, `gmail_mark_as_unread`, `gmail_get_profile`, `gmail_check_token_status`, `gmail_refresh_token`
 
-### Sharing & Permissions
-- `gdrive_share_file` - Share files with users
-- `gdrive_get_permissions` - Get file permissions
-- `gdrive_remove_permission` - Remove sharing permissions
-
-### Search & Discovery
-- `gdrive_search` - Advanced file search
-- `gdrive_get_recent_files` - Get recently modified files
-
-### Comments & Collaboration
-- `gdrive_get_comments` - Get file comments
-- `gdrive_add_comment` - Add comments to files
-
-### Revision History
-- `gdrive_get_revisions` - Get file revision history
-
-### Utility
-- `gdrive_get_about` - Get account information
-- `gdrive_empty_trash` - Empty trash folder
-
-## Example Usage
+## Usage Examples
 
 ```javascript
-// List files in root directory
-{
-  "tool": "gdrive_list_files",
-  "arguments": {
-    "maxResults": 50
-  }
-}
+// List Drive files
+{ "tool": "gdrive_list_files", "arguments": { "maxResults": 50 } }
 
-// Upload a text file
-{
-  "tool": "gdrive_upload_file",
-  "arguments": {
-    "name": "example.txt",
-    "content": "Hello, World!",
-    "mimeType": "text/plain"
-  }
-}
+// Upload file
+{ "tool": "gdrive_upload_file", "arguments": { "name": "test.txt", "content": "Hello" } }
 
-// Search for files
-{
-  "tool": "gdrive_search",
-  "arguments": {
-    "query": "presentation",
-    "mimeType": "application/vnd.google-apps.presentation"
-  }
-}
+// Send email
+{ "tool": "gmail_send_message", "arguments": { "to": "user@example.com", "subject": "Test", "body": "Hello!" } }
 
-// Share a file
-{
-  "tool": "gdrive_share_file",
-  "arguments": {
-    "fileId": "file_id_here",
-    "email": "user@example.com",
-    "role": "reader"
-  }
-}
+// Search emails
+{ "tool": "gmail_search_messages", "arguments": { "query": "is:unread", "maxResults": 10 } }
 ```
 
-## Security Notes
+## Security
 
-- Keep your credentials secure and never commit them to version control
-- Use environment variables or secure credential management
-- For production use, consider using service accounts with minimal required permissions
-- Regularly rotate your credentials
+- Never commit `.env` files to version control
+- Use environment variables in production
+- Server automatically refreshes Gmail tokens
+- Use minimal required OAuth scopes
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Error**: Ensure your credentials are correct and the Google Drive API is enabled
-2. **Permission Denied**: Check that your OAuth scope includes Google Drive access
-3. **File Not Found**: Verify file IDs and ensure you have access to the files
-4. **Rate Limiting**: The Google Drive API has rate limits; the server handles retries automatically
+- **"Gmail requires OAuth2"**: Set OAuth credentials in .env
+- **"Drive requires Service Account"**: Set Service Account credentials in .env
+- **Authentication Error**: Verify credentials and enable APIs in Google Cloud Console
+- **Token Expired**: Use `gmail_check_token_status` and `gmail_refresh_token`
 
-### Getting Help
+### Help
 
-1. Check the Google Drive API documentation: https://developers.google.com/drive/api
-2. Verify your Google Cloud Console configuration
-3. Test your credentials using the Google APIs Explorer
+- [HYBRID-AUTH-SETUP.md](./HYBRID-AUTH-SETUP.md) - Detailed setup guide
+- [Google Drive API Docs](https://developers.google.com/drive/api)
+- [Gmail API Docs](https://developers.google.com/gmail/api)
 
 ## Development
 
@@ -266,18 +183,8 @@ npm test
 
 MIT License - see LICENSE file for details
 
-## Contributing
+## License
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+MIT
 
-## Changelog
-
-### v1.0.0
-- Initial release
-- Full Google Drive API coverage
-- MCP protocol implementation
-- OAuth 2.0 and Service Account support 
+ 
