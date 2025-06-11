@@ -24,6 +24,7 @@ npm install -g gdrive-mcp-server
 
 ```bash
 # Clone or download this repository
+git clone https://github.com/igoralmeida1993/gdrive-mcp.git
 cd gdrive-mcp-server
 
 # Install dependencies

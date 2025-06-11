@@ -1,7 +1,7 @@
 {
-  "name": "google-workspace-mcp-server",
+  "name": "gdrive-mcp-server",
   "version": "1.0.0",
-  "description": "Google Workspace MCP Server - Model Context Protocol server for Google Drive and Gmail APIs",
+  "description": "Google Drive MCP Server - Model Context Protocol server for Google Drive and Gmail APIs",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -11,11 +11,19 @@
     "prepare": "npm run build"
   },
   "bin": {
-    "google-workspace-mcp-server": "dist/index.js"
+    "gdrive-mcp-server": "dist/index.js"
   },
-  "keywords": ["mcp", "google-drive", "gmail", "google-workspace", "api", "server"],
-  "author": "",
+  "keywords": ["mcp", "google-drive", "gmail", "google-workspace", "api", "server", "model-context-protocol", "ai", "llm"],
+  "author": "Igor Almeida",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/igoralmeida1993/gdrive-mcp.git"
+  },
+  "homepage": "https://github.com/igoralmeida1993/gdrive-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/igoralmeida1993/gdrive-mcp/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.4.0",
     "googleapis": "^128.0.0",
@@ -30,6 +38,16 @@
   "files": [
     "dist/**/*",
     "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "SETUP-GUIDE.md",
+    "HYBRID-AUTH-SETUP.md",
+    "TOKEN-MANAGEMENT.md",
+    "env.example",
     "package.json"
-  ]
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
 } 
