@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { config } from './config.js';
+import { Logger } from './logger.js';
 
 export class GmailService {
   private gmail: any;
@@ -36,8 +37,8 @@ export class GmailService {
         refresh_token: config.googleRefreshToken,
       });
     } else {
-      console.warn(
-        "Warning: No refresh token provided for Gmail. " +
+      Logger.warn(
+        "No refresh token provided for Gmail. " +
         "You may need to re-authenticate periodically."
       );
     }
@@ -45,7 +46,7 @@ export class GmailService {
 
   private setupTokenMaintenance() {
     if (!config.googleRefreshToken) {
-      console.warn("[Gmail] No refresh token available - token maintenance disabled");
+      Logger.gmail("No refresh token available - token maintenance disabled");
       return;
     }
 
@@ -53,15 +54,15 @@ export class GmailService {
     this.tokenRefreshInterval = setInterval(async () => {
       try {
         await this.validateAndRefreshToken();
-        console.log("[Gmail] Token refreshed successfully during maintenance");
+        Logger.gmail("Token refreshed successfully during maintenance");
       } catch (error) {
-        console.error("[Gmail] Token maintenance failed:", error instanceof Error ? error.message : String(error));
+        Logger.error("Token maintenance failed:", error instanceof Error ? error.message : String(error));
       }
     }, 30 * 60 * 1000); // 30 minutes
 
     // Initial token validation
     this.validateAndRefreshToken().catch(error => {
-      console.error("[Gmail] Initial token validation failed:", error instanceof Error ? error.message : String(error));
+      Logger.error("Initial token validation failed:", error instanceof Error ? error.message : String(error));
     });
   }
 
@@ -76,12 +77,12 @@ export class GmailService {
       
       if (tokenInfo.token) {
         this.lastTokenRefresh = new Date();
-        console.log(`[Gmail] Token validated and refreshed at ${this.lastTokenRefresh.toISOString()}`);
+        Logger.gmail(`Token validated and refreshed at ${this.lastTokenRefresh.toISOString()}`);
       } else {
         throw new Error("Failed to obtain access token");
       }
     } catch (error) {
-      console.error("[Gmail] Token validation failed:", error instanceof Error ? error.message : String(error));
+      Logger.error("Token validation failed:", error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -126,7 +127,7 @@ export class GmailService {
     if (this.tokenRefreshInterval) {
       clearInterval(this.tokenRefreshInterval);
       this.tokenRefreshInterval = null;
-      console.log("[Gmail] Token maintenance stopped");
+      Logger.gmail("Token maintenance stopped");
     }
   }
 
@@ -139,7 +140,7 @@ export class GmailService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error listing messages:', error);
+      Logger.error('Error listing messages:', error);
       throw error;
     }
   }
@@ -153,7 +154,7 @@ export class GmailService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error getting message:', error);
+      Logger.error('Error getting message:', error);
       throw error;
     }
   }
@@ -178,7 +179,7 @@ export class GmailService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error sending message:', error);
+      Logger.error('Error sending message:', error);
       throw error;
     }
   }
@@ -194,7 +195,7 @@ export class GmailService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error marking message as read:', error);
+      Logger.error('Error marking message as read:', error);
       throw error;
     }
   }
@@ -210,7 +211,7 @@ export class GmailService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error marking message as unread:', error);
+      Logger.error('Error marking message as unread:', error);
       throw error;
     }
   }
@@ -222,7 +223,7 @@ export class GmailService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error getting profile:', error);
+      Logger.error('Error getting profile:', error);
       throw error;
     }
   }
@@ -239,31 +240,40 @@ export class GmailService {
         return [];
       }
 
-      // Get full message details for each message
+      // Get full message details for each result
       const messages = await Promise.all(
         response.data.messages.map(async (message: any) => {
-          return await this.getMessage(message.id);
+          const fullMessage = await this.getMessage(message.id);
+          return {
+            id: fullMessage.id,
+            threadId: fullMessage.threadId,
+            snippet: fullMessage.snippet,
+            subject: this.getHeaderValue(fullMessage, 'Subject'),
+            from: this.getHeaderValue(fullMessage, 'From'),
+            to: this.getHeaderValue(fullMessage, 'To'),
+            date: this.getHeaderValue(fullMessage, 'Date'),
+            body: this.extractTextFromMessage(fullMessage),
+          };
         })
       );
 
       return messages;
     } catch (error) {
-      console.error('Error searching messages:', error);
+      Logger.error('Error searching messages:', error);
       throw error;
     }
   }
 
   extractTextFromMessage(message: any): string {
-    if (message.payload.body.data) {
+    if (!message.payload) return '';
+
+    if (message.payload.body && message.payload.body.data) {
       return Buffer.from(message.payload.body.data, 'base64').toString();
     }
 
     if (message.payload.parts) {
       for (const part of message.payload.parts) {
-        if (part.mimeType === 'text/plain' && part.body.data) {
-          return Buffer.from(part.body.data, 'base64').toString();
-        }
-        if (part.mimeType === 'text/html' && part.body.data) {
+        if (part.mimeType === 'text/plain' && part.body && part.body.data) {
           return Buffer.from(part.body.data, 'base64').toString();
         }
       }
@@ -273,9 +283,12 @@ export class GmailService {
   }
 
   getHeaderValue(message: any, headerName: string): string {
+    if (!message.payload || !message.payload.headers) return '';
+    
     const header = message.payload.headers.find(
       (h: any) => h.name.toLowerCase() === headerName.toLowerCase()
     );
+    
     return header ? header.value : '';
   }
 } 

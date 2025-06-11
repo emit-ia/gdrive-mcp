@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "google-drive-mcp": {
+      "command": "node",
+      "args": ["C:\\Users\\IgorAlmeida\\Documents\\GitHub\\gdrive-mcp\\dist\\index.js"],
+      "env": {
+        "GOOGLE_CLIENT_ID": "your-oauth-client-id.googleusercontent.com",
+        "GOOGLE_CLIENT_SECRET": "your-oauth-client-secret",
+        "GOOGLE_REFRESH_TOKEN": "your-refresh-token",
+        "GOOGLE_SERVICE_ACCOUNT_EMAIL": "everything-service@everything-461008.iam.gserviceaccount.com",
+        "GOOGLE_PRIVATE_KEY": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT_HERE\n-----END PRIVATE KEY-----"
+      }
+    }
+  }
+} 

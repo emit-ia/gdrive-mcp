@@ -9,6 +9,7 @@ import {
 import { GoogleDriveService } from "./google-drive.js";
 import { GmailService } from "./gmail.js";
 import { config } from "./config.js";
+import { Logger } from "./logger.js";
 
 class GoogleDriveMCPServer {
   private server: Server;
@@ -711,7 +712,7 @@ class GoogleDriveMCPServer {
 
   private setupErrorHandling() {
     this.server.onerror = (error: unknown) => {
-      console.error("[MCP Error]", error);
+      Logger.error("MCP Server Error:", error);
     };
 
     process.on("SIGINT", async () => {
@@ -723,13 +724,13 @@ class GoogleDriveMCPServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("Google Drive MCP server running on stdio");
+    Logger.info("Google Drive MCP server running on stdio");
   }
 }
 
 // Start the server
 const server = new GoogleDriveMCPServer();
 server.run().catch((error) => {
-  console.error("Failed to start server:", error);
+  Logger.error("Failed to start server:", error);
   process.exit(1);
 });

@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import { z } from "zod";
 import path from "path";
 import { fileURLToPath } from "url";
+import { Logger } from "./logger.js";
 
 // Get the directory of this module
 const __filename = fileURLToPath(import.meta.url);
@@ -20,7 +21,7 @@ for (const envPath of possibleEnvPaths) {
   try {
     const result = dotenv.config({ path: envPath });
     if (result.parsed) {
-      console.error(`[Config] Loaded environment from: ${envPath}`);
+      Logger.config(`Loaded environment from: ${envPath}`);
       envLoaded = true;
       break;
     }
@@ -30,7 +31,7 @@ for (const envPath of possibleEnvPaths) {
 }
 
 if (!envLoaded) {
-  console.error('[Config] No .env file found, using system environment variables');
+  Logger.config('No .env file found, using system environment variables');
 }
 
 // Define the configuration schema with optional credentials for initial setup
@@ -74,12 +75,12 @@ export type Config = z.infer<typeof configSchema>;
 
 // Validation function for runtime credential checking
 export function validateCredentials(): void {
-  console.error(`[Config] Validating credentials...`);
-  console.error(`[Config] Client ID present: ${!!config.googleClientId}`);
-  console.error(`[Config] Client Secret present: ${!!config.googleClientSecret}`);
-  console.error(`[Config] Refresh Token present: ${!!config.googleRefreshToken}`);
-  console.error(`[Config] Service Account Email present: ${!!config.googleServiceAccountEmail}`);
-  console.error(`[Config] Private Key present: ${!!config.googlePrivateKey}`);
+  Logger.config(`Validating credentials...`);
+  Logger.config(`Client ID present: ${!!config.googleClientId}`);
+  Logger.config(`Client Secret present: ${!!config.googleClientSecret}`);
+  Logger.config(`Refresh Token present: ${!!config.googleRefreshToken}`);
+  Logger.config(`Service Account Email present: ${!!config.googleServiceAccountEmail}`);
+  Logger.config(`Private Key present: ${!!config.googlePrivateKey}`);
 
   // For hybrid authentication, we need BOTH OAuth (for Gmail) AND Service Account (for Drive)
   const hasOAuth = config.googleClientId && config.googleClientSecret;
@@ -101,23 +102,23 @@ export function validateCredentials(): void {
   }
 
   if (!hasOAuth) {
-    console.warn(
-      "Warning: No OAuth credentials found. Gmail functionality will be disabled.\n" +
+    Logger.warn(
+      "No OAuth credentials found. Gmail functionality will be disabled. " +
       "Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN to enable Gmail."
     );
   }
 
   if (!hasServiceAccount) {
-    console.warn(
-      "Warning: No Service Account credentials found. Google Drive functionality will be disabled.\n" +
+    Logger.warn(
+      "No Service Account credentials found. Google Drive functionality will be disabled. " +
       "Set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY to enable Google Drive."
     );
   }
 
   if (hasOAuth && !config.googleRefreshToken) {
-    console.warn(
-      "Warning: OAuth credentials found but no refresh token provided.\n" +
-      "You'll need to set GOOGLE_REFRESH_TOKEN for Gmail functionality.\n" +
+    Logger.warn(
+      "OAuth credentials found but no refresh token provided. " +
+      "You'll need to set GOOGLE_REFRESH_TOKEN for Gmail functionality. " +
       "See SETUP-GUIDE.md for instructions on generating a refresh token."
     );
   }
