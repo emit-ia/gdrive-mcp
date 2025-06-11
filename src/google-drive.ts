@@ -3,27 +3,41 @@ import { OAuth2Client } from "google-auth-library";
 import { config, validateCredentials } from "./config.js";
 
 export class GoogleDriveService {
-  private auth: OAuth2Client;
+  private auth: any;
   private drive: any;
 
   constructor() {
     // Validate credentials before attempting to initialize
     validateCredentials();
 
-    this.auth = new OAuth2Client(
-      config.googleClientId,
-      config.googleClientSecret,
-      config.googleRedirectUri
-    );
-
-    // Set refresh token if available
-    if (config.googleRefreshToken) {
-      this.auth.setCredentials({
-        refresh_token: config.googleRefreshToken,
-      });
-    }
-
+    this.initializeAuth();
     this.drive = google.drive({ version: "v3", auth: this.auth });
+  }
+
+  private initializeAuth() {
+    if (config.googleServiceAccountEmail && config.googlePrivateKey) {
+      // Service Account authentication
+      this.auth = new google.auth.JWT(
+        config.googleServiceAccountEmail,
+        undefined,
+        config.googlePrivateKey,
+        ['https://www.googleapis.com/auth/drive']
+      );
+    } else {
+      // OAuth2 authentication
+      this.auth = new OAuth2Client(
+        config.googleClientId,
+        config.googleClientSecret,
+        config.googleRedirectUri
+      );
+
+      // Set refresh token if available
+      if (config.googleRefreshToken) {
+        this.auth.setCredentials({
+          refresh_token: config.googleRefreshToken,
+        });
+      }
+    }
   }
 
   async listFiles(args: any = {}) {
