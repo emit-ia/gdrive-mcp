@@ -15,29 +15,22 @@ export class GoogleDriveService {
   }
 
   private initializeAuth() {
-    if (config.googleServiceAccountEmail && config.googlePrivateKey) {
-      // Service Account authentication
-      this.auth = new google.auth.JWT(
-        config.googleServiceAccountEmail,
-        undefined,
-        config.googlePrivateKey,
-        ['https://www.googleapis.com/auth/drive']
+    // Force Service Account authentication for Google Drive (more reliable, no expiration)
+    if (!config.googleServiceAccountEmail || !config.googlePrivateKey) {
+      throw new Error(
+        "Google Drive requires Service Account authentication. Please set:\n" +
+        "- GOOGLE_SERVICE_ACCOUNT_EMAIL\n" +
+        "- GOOGLE_PRIVATE_KEY\n\n" +
+        "Service accounts provide reliable, non-expiring access to Google Drive."
       );
-    } else {
-      // OAuth2 authentication
-      this.auth = new OAuth2Client(
-        config.googleClientId,
-        config.googleClientSecret,
-        config.googleRedirectUri
-      );
-
-      // Set refresh token if available
-      if (config.googleRefreshToken) {
-        this.auth.setCredentials({
-          refresh_token: config.googleRefreshToken,
-        });
-      }
     }
+
+    this.auth = new google.auth.JWT(
+      config.googleServiceAccountEmail,
+      undefined,
+      config.googlePrivateKey,
+      ['https://www.googleapis.com/auth/drive']
+    );
   }
 
   async listFiles(args: any = {}) {

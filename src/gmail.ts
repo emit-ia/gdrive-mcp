@@ -4,39 +4,129 @@ import { config } from './config.js';
 export class GmailService {
   private gmail: any;
   private auth: any;
+  private lastTokenRefresh: Date = new Date();
+  private tokenRefreshInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.initializeAuth();
     this.gmail = google.gmail({ version: 'v1', auth: this.auth });
+    this.setupTokenMaintenance();
   }
 
   private initializeAuth() {
-    if (config.googleServiceAccountEmail && config.googlePrivateKey) {
-      // Service Account authentication
-      this.auth = new google.auth.JWT(
-        config.googleServiceAccountEmail,
-        undefined,
-        config.googlePrivateKey,
-        [
-          'https://www.googleapis.com/auth/gmail.readonly',
-          'https://www.googleapis.com/auth/gmail.send',
-          'https://www.googleapis.com/auth/gmail.modify',
-          'https://www.googleapis.com/auth/gmail.compose'
-        ]
+    // Force OAuth2 authentication for Gmail (service accounts don't work well with personal Gmail)
+    if (!config.googleClientId || !config.googleClientSecret) {
+      throw new Error(
+        "Gmail requires OAuth2 authentication. Please set:\n" +
+        "- GOOGLE_CLIENT_ID\n" +
+        "- GOOGLE_CLIENT_SECRET\n" +
+        "- GOOGLE_REFRESH_TOKEN (optional but recommended)\n\n" +
+        "Service accounts cannot access personal Gmail accounts."
       );
-    } else {
-      // OAuth2 authentication
-      this.auth = new google.auth.OAuth2(
-        config.googleClientId,
-        config.googleClientSecret,
-        config.googleRedirectUri
-      );
+    }
 
-      if (config.googleRefreshToken) {
-        this.auth.setCredentials({
-          refresh_token: config.googleRefreshToken,
-        });
+    this.auth = new google.auth.OAuth2(
+      config.googleClientId,
+      config.googleClientSecret,
+      config.googleRedirectUri
+    );
+
+    if (config.googleRefreshToken) {
+      this.auth.setCredentials({
+        refresh_token: config.googleRefreshToken,
+      });
+    } else {
+      console.warn(
+        "Warning: No refresh token provided for Gmail. " +
+        "You may need to re-authenticate periodically."
+      );
+    }
+  }
+
+  private setupTokenMaintenance() {
+    if (!config.googleRefreshToken) {
+      console.warn("[Gmail] No refresh token available - token maintenance disabled");
+      return;
+    }
+
+    // Refresh token every 30 minutes to keep it active
+    this.tokenRefreshInterval = setInterval(async () => {
+      try {
+        await this.validateAndRefreshToken();
+        console.log("[Gmail] Token refreshed successfully during maintenance");
+      } catch (error) {
+        console.error("[Gmail] Token maintenance failed:", error instanceof Error ? error.message : String(error));
       }
+    }, 30 * 60 * 1000); // 30 minutes
+
+    // Initial token validation
+    this.validateAndRefreshToken().catch(error => {
+      console.error("[Gmail] Initial token validation failed:", error instanceof Error ? error.message : String(error));
+    });
+  }
+
+  private async validateAndRefreshToken(): Promise<void> {
+    if (!config.googleRefreshToken) {
+      throw new Error("No refresh token available for validation");
+    }
+
+    try {
+      // Force a token refresh by getting access token info
+      const tokenInfo = await this.auth.getAccessToken();
+      
+      if (tokenInfo.token) {
+        this.lastTokenRefresh = new Date();
+        console.log(`[Gmail] Token validated and refreshed at ${this.lastTokenRefresh.toISOString()}`);
+      } else {
+        throw new Error("Failed to obtain access token");
+      }
+    } catch (error) {
+      console.error("[Gmail] Token validation failed:", error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+  }
+
+  // Add a method to manually refresh the token
+  async refreshToken(): Promise<{ success: boolean; lastRefresh: Date; message: string }> {
+    try {
+      await this.validateAndRefreshToken();
+      return {
+        success: true,
+        lastRefresh: this.lastTokenRefresh,
+        message: "Token refreshed successfully"
+      };
+    } catch (error) {
+      return {
+        success: false,
+        lastRefresh: this.lastTokenRefresh,
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  // Add a method to get token status
+  getTokenStatus(): { 
+    hasRefreshToken: boolean; 
+    lastRefresh: Date; 
+    minutesSinceRefresh: number;
+    maintenanceActive: boolean;
+  } {
+    const minutesSinceRefresh = (Date.now() - this.lastTokenRefresh.getTime()) / (1000 * 60);
+    
+    return {
+      hasRefreshToken: !!config.googleRefreshToken,
+      lastRefresh: this.lastTokenRefresh,
+      minutesSinceRefresh: Math.round(minutesSinceRefresh),
+      maintenanceActive: this.tokenRefreshInterval !== null
+    };
+  }
+
+  // Cleanup method
+  destroy() {
+    if (this.tokenRefreshInterval) {
+      clearInterval(this.tokenRefreshInterval);
+      this.tokenRefreshInterval = null;
+      console.log("[Gmail] Token maintenance stopped");
     }
   }
 

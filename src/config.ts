@@ -81,26 +81,43 @@ export function validateCredentials(): void {
   console.error(`[Config] Service Account Email present: ${!!config.googleServiceAccountEmail}`);
   console.error(`[Config] Private Key present: ${!!config.googlePrivateKey}`);
 
-  if (!config.googleClientId || !config.googleClientSecret) {
-    if (!config.googleServiceAccountEmail || !config.googlePrivateKey) {
-      throw new Error(
-        "Missing Google API credentials. Please set either:\n" +
-        "1. GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (with GOOGLE_REFRESH_TOKEN), or\n" +
-        "2. GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY\n\n" +
-        "Current working directory: " + process.cwd() + "\n" +
-        "Environment variables checked:\n" +
-        `- GOOGLE_CLIENT_ID: ${process.env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET'}\n` +
-        `- GOOGLE_CLIENT_SECRET: ${process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET'}\n` +
-        `- GOOGLE_REFRESH_TOKEN: ${process.env.GOOGLE_REFRESH_TOKEN ? 'SET' : 'NOT SET'}\n\n` +
-        "See SETUP-GUIDE.md for detailed setup instructions."
-      );
-    }
+  // For hybrid authentication, we need BOTH OAuth (for Gmail) AND Service Account (for Drive)
+  const hasOAuth = config.googleClientId && config.googleClientSecret;
+  const hasServiceAccount = config.googleServiceAccountEmail && config.googlePrivateKey;
+
+  if (!hasOAuth && !hasServiceAccount) {
+    throw new Error(
+      "Missing Google API credentials. For full functionality, please set:\n\n" +
+      "FOR GMAIL (OAuth2 - required for personal Gmail access):\n" +
+      "- GOOGLE_CLIENT_ID\n" +
+      "- GOOGLE_CLIENT_SECRET\n" +
+      "- GOOGLE_REFRESH_TOKEN (recommended)\n\n" +
+      "FOR GOOGLE DRIVE (Service Account - reliable, no expiration):\n" +
+      "- GOOGLE_SERVICE_ACCOUNT_EMAIL\n" +
+      "- GOOGLE_PRIVATE_KEY\n\n" +
+      "Current working directory: " + process.cwd() + "\n" +
+      "See SETUP-GUIDE.md for detailed setup instructions."
+    );
   }
 
-  if (config.googleClientId && config.googleClientSecret && !config.googleRefreshToken) {
+  if (!hasOAuth) {
+    console.warn(
+      "Warning: No OAuth credentials found. Gmail functionality will be disabled.\n" +
+      "Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN to enable Gmail."
+    );
+  }
+
+  if (!hasServiceAccount) {
+    console.warn(
+      "Warning: No Service Account credentials found. Google Drive functionality will be disabled.\n" +
+      "Set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY to enable Google Drive."
+    );
+  }
+
+  if (hasOAuth && !config.googleRefreshToken) {
     console.warn(
       "Warning: OAuth credentials found but no refresh token provided.\n" +
-      "You'll need to set GOOGLE_REFRESH_TOKEN for full functionality.\n" +
+      "You'll need to set GOOGLE_REFRESH_TOKEN for Gmail functionality.\n" +
       "See SETUP-GUIDE.md for instructions on generating a refresh token."
     );
   }

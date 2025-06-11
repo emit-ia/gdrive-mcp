@@ -557,6 +557,25 @@ class GoogleDriveMCPServer {
               properties: {},
             },
           },
+          // Token management tools
+          {
+            name: "gmail_check_token_status",
+            description: "Check the status of Gmail authentication token",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              required: [],
+            },
+          },
+          {
+            name: "gmail_refresh_token",
+            description: "Manually refresh the Gmail authentication token to prevent expiration",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              required: [],
+            },
+          },
         ],
       };
     });
@@ -658,6 +677,12 @@ class GoogleDriveMCPServer {
           case "gmail_get_profile":
             result = await this.gmailService.getProfile();
             break;
+          case "gmail_check_token_status":
+            result = this.gmailService.getTokenStatus();
+            break;
+          case "gmail_refresh_token":
+            result = await this.gmailService.refreshToken();
+            break;
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -707,4 +732,4 @@ const server = new GoogleDriveMCPServer();
 server.run().catch((error) => {
   console.error("Failed to start server:", error);
   process.exit(1);
-}); 
+});
