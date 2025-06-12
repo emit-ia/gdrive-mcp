@@ -1,5 +1,5 @@
 {
-  "name": "gdrive-mcp-server",
+  "name": "@emit-ia/gdrive-mcp-server",
   "version": "1.0.1",
   "description": "Google Drive MCP Server - Model Context Protocol server for Google Drive and Gmail APIs",
   "main": "dist/index.js",
