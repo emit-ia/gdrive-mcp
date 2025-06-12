@@ -19,6 +19,9 @@ Model Context Protocol server for Google Drive and Gmail APIs with hybrid authen
 # Global installation
 npm install -g gdrive-mcp-server
 
+# Or run directly with npx (recommended)
+npx gdrive-mcp-server
+
 # Or local development
 git clone https://github.com/igoralmeida1993/gdrive-mcp.git
 cd gdrive-mcp
@@ -106,7 +109,8 @@ Claude Desktop configuration:
 {
   "mcpServers": {
     "google-workspace": {
-      "command": "gdrive-mcp-server",
+      "command": "npx",
+      "args": ["gdrive-mcp-server"],
       "env": {
         "GOOGLE_CLIENT_ID": "your_client_id",
         "GOOGLE_CLIENT_SECRET": "your_client_secret",
